@@ -1,5 +1,4 @@
 // src/core/Client.js
-import Handler from './Handler.js';
 import makeWASocket, { 
   useMultiFileAuthState, 
   DisconnectReason, 
@@ -9,6 +8,7 @@ import qrcode from 'qrcode-terminal';
 import pino from 'pino';
 import logger from '../utils/Logger.js';
 import config from '../../config/config.js';
+import Handler from './Handler.js';
 
 class Client {
   constructor() {
@@ -95,3 +95,6 @@ class Client {
       }
     });
   }
+}
+
+export default Client;
