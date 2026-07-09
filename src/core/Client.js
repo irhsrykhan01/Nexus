@@ -1,5 +1,9 @@
 // src/core/Client.js
-import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import makeWASocket, { 
+  useMultiFileAuthState, 
+  DisconnectReason, 
+  fetchLatestBaileysVersion 
+} from '@whiskeysockets/baileys';
 import qrcode from 'qrcode-terminal';
 import pino from 'pino';
 import logger from '../utils/Logger.js';
@@ -10,21 +14,44 @@ class Client {
     this.socket = null;
   }
 
+  // Helper untuk mendapatkan versi WhatsApp Web dengan batas waktu (timeout)
+  async getWhatsAppVersion() {
+    const timeoutPromise = (ms) => new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout saat mengambil versi WA')), ms)
+    );
+
+    try {
+      logger.info('Mengambil versi protokol WhatsApp Web terbaru...');
+      // Membatasi proses pencarian versi maksimal 4 detik agar tidak menggantung (hang)
+      const result = await Promise.race([
+        fetchLatestBaileysVersion(),
+        timeoutPromise(4000)
+      ]);
+      
+      logger.info(`Berhasil mendapatkan versi dinamis: v${result.version.join('.')}`);
+      return result.version;
+    } catch (err) {
+      const fallbackVersion = [2, 3000, 1033893291]; // Versi stabil cadangan
+      logger.warn(`Gagal memuat versi dinamis (${err.message}). Menggunakan fallback v${fallbackVersion.join('.')}`);
+      return fallbackVersion;
+    }
+  }
+
   async connect() {
     logger.info('Menginisialisasi modul autentikasi...');
-    
-    // Menggunakan useMultiFileAuthState yang diimpor secara eksplisit
     const { state, saveCreds } = await useMultiFileAuthState(config.sessionPath);
 
+    // Ambil versi WA sebelum membuat socket
+    const waVersion = await this.getWhatsAppVersion();
+
     logger.info('Membuka koneksi WebSocket ke WhatsApp...');
-    
-    // Menghindari inkonsistensi default export di beberapa versi Node.js / Baileys
     const socketInit = makeWASocket.default || makeWASocket;
 
     this.socket = socketInit({
       auth: state,
+      version: waVersion, // <--- Menyematkan versi WhatsApp Web yang valid
       printQRInTerminal: false,
-      logger: pino({ level: 'silent' }) // Mematikan log internal Baileys agar terminal bersih
+      logger: pino({ level: 'silent' })
     });
 
     // Menangani perubahan status koneksi
@@ -54,7 +81,6 @@ class Client {
       }
     });
 
-    // Menyimpan kredensial sesi setiap kali ada perubahan
     this.socket.ev.on('creds.update', saveCreds);
   }
 }
