@@ -1,22 +1,24 @@
 // src/plugins/system/ping.js
+import Format from '../../utils/Format.js';
+
 export default {
   name: "ping",
   aliases: ["p"],
   category: "System",
-  description: "Memeriksa kecepatan respon bot",
+  description: "Memeriksa latensi kecepatan respon bot",
   owner: false,
   admin: false,
   group: false,
 
   async execute(ctx) {
-    // Menghitung latensi respon bot secara sederhana
-    const startTimestamp = Date.now();
-    const sentMessage = await ctx.reply("Menghitung respon bot...");
-    const speed = Date.now() - startTimestamp;
+    const start = Date.now();
+    // Mengirim pesan sementara untuk menghitung selisih waktu respon server
+    const sent = await ctx.reply(Format.info('Ping', 'Menghitung latensi respon...'));
+    const latency = Date.now() - start;
 
-    // Memperbarui pesan tadi dengan informasi latensi milidetik
+    // Menghapus/mengedit balasan sementara dan mengirim hasil akhir berformat konsisten
     await ctx.socket.sendMessage(ctx.from, {
-      text: `Pong! 🚀 Respon bot membutuhkan waktu *${speed} ms*`
+      text: Format.info('Information', `Latensi Respon: *${latency} ms*`)
     }, { quoted: ctx.msg });
   }
 };
