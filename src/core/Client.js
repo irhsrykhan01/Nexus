@@ -1,4 +1,5 @@
 // src/core/Client.js
+import Handler from './Handler.js';
 import makeWASocket, { 
   useMultiFileAuthState, 
   DisconnectReason, 
@@ -41,7 +42,6 @@ class Client {
     logger.info('Menginisialisasi modul autentikasi...');
     const { state, saveCreds } = await useMultiFileAuthState(config.sessionPath);
 
-    // Ambil versi WA sebelum membuat socket
     const waVersion = await this.getWhatsAppVersion();
 
     logger.info('Membuka koneksi WebSocket ke WhatsApp...');
@@ -49,12 +49,14 @@ class Client {
 
     this.socket = socketInit({
       auth: state,
-      version: waVersion, // <--- Menyematkan versi WhatsApp Web yang valid
+      version: waVersion,
       printQRInTerminal: false,
       logger: pino({ level: 'silent' })
     });
 
-    // Menangani perubahan status koneksi
+    // Deklarasi variabel instance handler
+    let messageHandler = null;
+
     this.socket.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
@@ -73,16 +75,23 @@ class Client {
           logger.info('Mencoba menyambungkan kembali ke WhatsApp dalam 5 detik...');
           setTimeout(() => this.connect(), 5000);
         } else {
-          logger.error('Sesi Anda telah keluar (Logged Out). Harap hapus folder "./session" secara manual dan jalankan ulang bot.');
+          logger.error('Sesi Anda telah keluar (Logged Out). Harap hapus folder "./session" secara manual.');
         }
       } 
       else if (connection === 'open') {
         logger.info(`Koneksi berhasil terjalin! ${config.botName} kini aktif.`);
+        
+        // Inisialisasi Handler baru ketika soket koneksi sukses terhubung
+        messageHandler = new Handler(this.socket);
       }
     });
 
     this.socket.ev.on('creds.update', saveCreds);
-  }
-}
 
-export default Client;
+    // Meneruskan seluruh event pesan masuk baru ke Handler utama
+    this.socket.ev.on('messages.upsert', async (upsert) => {
+      if (messageHandler) {
+        await messageHandler.handleMessage(upsert);
+      }
+    });
+  }
