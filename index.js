@@ -1,11 +1,18 @@
 // index.js
 import Client from './src/core/Client.js';
 import logger from './src/utils/Logger.js';
+import db from './src/utils/Database.js';
 
-logger.info('Memulai Bootstrap Nexus Framework...');
+async function bootstrap() {
+  logger.info('Memulai Bootstrap Nexus Framework...');
+  
+  // Mengaktifkan database persisten lokal
+  await db.init();
+  
+  const bot = new Client();
+  await bot.connect();
+}
 
-const bot = new Client();
-
-bot.connect().catch((err) => {
-  logger.error(`Gagal menginisialisasi bot: ${err.message}`);
+bootstrap().catch((err) => {
+  logger.error(`Gagal melakukan inisialisasi bootstrapper: ${err.message}`);
 });
