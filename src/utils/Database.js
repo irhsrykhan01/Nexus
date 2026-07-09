@@ -9,7 +9,6 @@ class Database {
     this.data = {};
   }
 
-  // Menginisialisasi file database saat bot pertama kali dijalankan
   async init() {
     try {
       if (fs.existsSync(this.filePath)) {
@@ -17,18 +16,46 @@ class Database {
         this.data = JSON.parse(raw);
         logger.info('Database lokal berhasil dimuat.');
       } else {
-        // Kerangka dasar database untuk masa depan
         this.data = { users: {}, groups: {}, settings: {} };
+        logger.info('Database lokal baru berhasil diinisialisasi.');
+      }
+
+      // Memastikan konfigurasi Bot Mode & Scope dasar selalu terisi saat inisialisasi awal
+      if (!this.data.bot) {
+        this.data.bot = {
+          mode: "all", // Pilihan: "all", "private", "group", "off"
+          scope: {
+            private: true,
+            group: true,
+            community: true,
+            channel: false,
+            newsletter: false,
+            status: false
+          }
+        };
         this.save();
-        logger.info('Database lokal baru berhasil dibuat.');
       }
     } catch (err) {
       logger.error(`Gagal menginisialisasi database: ${err.message}`);
-      this.data = { users: {}, groups: {}, settings: {} };
+      this.data = { 
+        users: {}, 
+        groups: {}, 
+        settings: {},
+        bot: {
+          mode: "all",
+          scope: {
+            private: true,
+            group: true,
+            community: true,
+            channel: false,
+            newsletter: false,
+            status: false
+          }
+        }
+      };
     }
   }
 
-  // Menyimpan keadaan data saat ini ke dalam disk (JSON)
   save() {
     try {
       fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), 'utf-8');
@@ -47,6 +74,5 @@ class Database {
   }
 }
 
-// Ekspor instance tunggal (Singleton pattern) agar seluruh modul menggunakan instance database yang sama
 const db = new Database();
 export default db;
